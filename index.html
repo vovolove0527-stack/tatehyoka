@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>現場写真記録</title>
+<style>
+/* レイアウト: 左に撮影画面、右に案件入力と撮影一覧。狭い画面では縦に積む。屋外で使うため操作部は大きく、コントラストは高く。 */
+:root {
+  --bg: #edf0ec;
+  --surface: #ffffff;
+  --fg: #1a231e;
+  --muted: #56655d;
+  --line: #d2d9d3;
+  --accent: #1d6a49;
+  --accent-fg: #ffffff;
+  --warn: #8a4f00;
+  --warn-bg: #fff0d1;
+  --bad: #b3261e;
+  --bad-bg: #fde7e5;
+  --ok-bg: #dff3e8;
+  --stage: #0b0f0d;
+  --font-ui: "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", "Meiryo", system-ui, sans-serif;
+  --font-data: ui-monospace, "SFMono-Regular", Consolas, "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111713;
+    --surface: #1b251f;
+    --fg: #e7efe9;
+    --muted: #9bb0a4;
+    --line: #2e3c34;
+    --accent: #5ec99b;
+    --accent-fg: #07180f;
+    --warn: #f2b24a;
+    --warn-bg: #3a2a0d;
+    --bad: #ff8f86;
+    --bad-bg: #3d1a17;
+    --ok-bg: #173325;
+    --stage: #000000;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111713;
+  --surface: #1b251f;
+  --fg: #e7efe9;
+  --muted: #9bb0a4;
+  --line: #2e3c34;
+  --accent: #5ec99b;
+  --accent-fg: #07180f;
+  --warn: #f2b24a;
+  --warn-bg: #3a2a0d;
+  --bad: #ff8f86;
+  --bad-bg: #3d1a17;
+  --ok-bg: #173325;
+  --stage: #000000;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.6;
+  padding-block: 16px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 16px; }
+
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 8px 16px; }
+h1 { font-size: 1.35rem; line-height: 1.3; margin: 0; text-wrap: balance; }
+.sub { margin: 2px 0 0; color: var(--muted); font-size: 0.88rem; }
+
+.statusbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.clock { font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: 1.05rem; padding: 6px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.pill::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+.pill.ok { background: var(--ok-bg); border-color: var(--accent); }
+.pill.ok::before { background: var(--accent); }
+.pill.warn { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); }
+.pill.warn::before { background: var(--warn); }
+.pill.bad { background: var(--bad-bg); border-color: var(--bad); color: var(--bad); }
+.pill.bad::before { background: var(--bad); }
+
+.banner { padding: 10px 14px; border-radius: 6px; border: 1px solid var(--warn); background: var(--warn-bg); color: var(--warn); font-size: 0.92rem; }
+.banner.bad { border-color: var(--bad); background: var(--bad-bg); color: var(--bad); }
+
+.main { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: grid; gap: 12px; min-width: 0; }
+.panel h2 { font-size: 1rem; margin: 0; }
+
+.stage { position: relative; background: var(--stage); border-radius: 6px; overflow: hidden; aspect-ratio: 4 / 3; max-width: 100%; }
+.stage video { width: 100%; height: 100%; object-fit: contain; display: block; background: var(--stage); }
+.stage .idle { position: absolute; inset: 0; display: grid; place-items: center; color: #b9c7be; text-align: center; padding: 16px; font-size: 0.95rem; }
+.hud { position: absolute; left: 0; right: 0; bottom: 0; color: #fff; text-shadow: 0 0 3px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.9); font-family: var(--font-data); font-size: clamp(10px, 1.7vw, 14px); line-height: 1.45; padding: 6px 10px; pointer-events: none; }
+.hud div { overflow-wrap: anywhere; }
+.hud .nogps { color: #ffc247; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+button, .filebtn {
+  font: inherit; min-height: 48px; padding: 0 18px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--fg); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-align: center;
+}
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 700; }
+button.shutter { min-height: 60px; padding: 0 30px; font-size: 1.1rem; flex: 1 1 200px; }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button:focus-visible, .filebtn:focus-within, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.filebtn input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.filebtn { position: relative; }
+.small { font-size: 0.85rem; color: var(--muted); margin: 0; }
+
+label.field { display: grid; gap: 4px; font-size: 0.9rem; font-weight: 600; }
+input[type="text"], input[type="number"], input[type="password"], select {
+  font: inherit; min-height: 46px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--fg); width: 100%; min-width: 0;
+}
+select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.readonly { min-height: 46px; padding: 0 12px; border-radius: 6px; border: 1px dashed var(--line); background: var(--bg); display: flex; align-items: center; font-family: var(--font-data); font-weight: 600; overflow-wrap: anywhere; }
+.login { max-width: 420px; margin: 8vh auto 0; }
+.login .panel { gap: 14px; }
+.login h1 { font-size: 1.25rem; }
+button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.fields .wide { grid-column: 1 / -1; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 0.88rem; }
+.check input { width: 20px; height: 20px; margin-top: 3px; flex: none; }
+
+.list { display: grid; gap: 8px; }
+.empty { color: var(--muted); font-size: 0.92rem; padding: 8px 0; margin: 0; }
+.item { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 10px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; align-items: start; }
+.item img { width: 84px; height: 64px; object-fit: cover; border-radius: 4px; background: var(--stage); }
+.item .meta { min-width: 0; font-size: 0.82rem; line-height: 1.5; }
+.item .meta .name { font-family: var(--font-data); overflow-wrap: anywhere; font-weight: 600; }
+.item .meta .info { color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.item .acts { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; align-items: center; }
+.item .acts button { min-height: 36px; padding: 0 12px; font-size: 0.85rem; }
+.tag { font-size: 0.75rem; padding: 1px 8px; border-radius: 4px; border: 1px solid var(--warn); color: var(--warn); }
+.tag.saved { border-color: var(--accent); color: var(--accent); }
+
+.notes { font-size: 0.86rem; color: var(--muted); }
+.notes ul { margin: 6px 0 0; padding-left: 1.2em; display: grid; gap: 2px; }
+.notes strong { color: var(--fg); }
+</style>
+</head>
+<body>
+<main class="login" id="loginRoot">
+  <form class="panel" id="loginForm" autocomplete="off">
+    <div>
+      <h1>建物共済 現場写真記録</h1>
+      <p class="sub" id="loginSub">職員IDを選んで、パスワードを入力してください</p>
+    </div>
+    <label class="field">職員ID
+      <select id="staffSel"></select>
+    </label>
+    <label class="field">パスワード
+      <input type="password" id="pw" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </label>
+    <div class="banner bad" id="loginMsg" role="alert" hidden></div>
+    <button class="primary" type="submit" id="loginBtn">ログイン</button>
+  </form>
+</main>
+
+<div class="wrap" id="appRoot" hidden>
+  <header class="top">
+    <div>
+      <h1>建物共済 現場写真記録</h1>
+      <p class="sub">撮影日時とGPS位置を写真に焼き付けて、この端末に保存します</p>
+    </div>
+    <div class="statusbar" aria-label="現在の状態">
+      <span class="clock" id="clock" aria-label="現在時刻(日本時間)">----/--/-- --:--:--</span>
+      <span class="pill" id="gpsPill">位置情報: 未開始</span>
+      <button type="button" class="small-btn" id="logoutBtn">ログアウト</button>
+    </div>
+  </header>
+
+  <div class="banner bad" id="drift" hidden>端末の時計とGPSの時刻が2分以上ずれています。端末の日時設定を確認してください。</div>
+  <div class="banner" id="notice" role="status" hidden></div>
+
+  <div class="main">
+    <section class="panel" aria-label="撮影">
+      <div class="stage">
+        <video id="video" playsinline muted></video>
+        <div class="idle" id="idle">「カメラを開始」を押すと、カメラと位置情報の許可を求められます。</div>
+        <div class="hud" id="hud" hidden></div>
+      </div>
+      <div class="controls">
+        <button class="primary" id="startBtn" type="button">カメラを開始</button>
+        <button class="primary shutter" id="shutter" type="button" disabled>撮影して焼き付ける</button>
+        <button id="stopBtn" type="button" hidden>カメラを止める</button>
+      </div>
+      <label class="check"><input type="checkbox" id="allowNoGps"><span>位置情報が取れない場合も撮影を許可する(写真には「位置情報なし」と焼き付きます)</span></label>
+      <label class="check"><input type="checkbox" id="addrOn"><span>市区町村名を焼き付ける(オンにすると、現在地の緯度経度を国土地理院の公開サービスに送って市区町村名を調べます)</span></label>
+      <p class="small" id="addrNow" role="status"></p>
+      <div class="controls">
+        <label class="filebtn">カメラが使えない場合: 撮影済みの写真を選ぶ<input type="file" id="fileIn" accept="image/*" capture="environment"></label>
+      </div>
+      <p class="small">写真を選ぶ方法では、写真の撮影時刻ではなく、選んだ時点の日時とGPSが「焼付日時」として焼き付きます。</p>
+    </section>
+
+    <div style="display:grid; gap:16px; min-width:0;">
+      <section class="panel" aria-label="案件情報">
+        <h2>案件情報</h2>
+        <div class="fields">
+          <label class="field wide">整理番号
+            <input type="text" id="caseId" autocomplete="off" placeholder="例: 建-2026-0001">
+          </label>
+          <div class="field">担当者(ログイン中の職員ID)
+            <div class="readonly" id="whoShow">-</div>
+          </div>
+          <label class="field">通し番号
+            <input type="number" id="seq" min="1" step="1" value="1" inputmode="numeric">
+          </label>
+        </div>
+        <p class="small">組合員の氏名・住所・電話番号は入力しないでください。写真は整理番号で管理します。</p>
+      </section>
+
+      <section class="panel" aria-label="撮影一覧">
+        <h2>撮影一覧 <span class="small" id="count"></span></h2>
+        <div class="list" id="list"></div>
+        <div class="controls">
+          <button class="primary" id="saveAll" type="button" disabled>未保存をすべて保存</button>
+          <button id="csvBtn" type="button" disabled>撮影記録CSVを保存</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <section class="panel notes" aria-label="使い方と注意">
+    <h2>使い方と注意</h2>
+    <ul>
+      <li>ブラウザが求める<strong>カメラと位置情報の許可</strong>を「許可」にしてください。</li>
+      <li>日時は端末の時計を日本時間で表示しています。端末の日時が正しいか、撮影前に確認してください。</li>
+      <li>写真は「保存」を押したときにダウンロード先へ保存されます。<strong>未保存の写真はページを閉じると失われます。</strong></li>
+      <li>撮影記録CSVには、各写真の日時・緯度経度・精度・SHA-256(改ざん確認用の値)が入ります。CSVは写真とは別の場所にも保管してください。</li>
+      <li>写真は外部へ送信しません。「市区町村名を焼き付ける」をオンにした場合だけ、現在地の緯度経度(小数点以下4桁)を国土地理院のサービスに送ります。写真の保存先への移動は、組合の定めた手順で行ってください。</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var FONT = '"Hiragino Sans","Yu Gothic UI","Noto Sans JP","Meiryo",system-ui,sans-serif';
+  var STALE_MS = 60000;
+  var WARN_ACC = 50;
+  var DRIFT_MS = 120000;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var st = { stream: null, fix: null, watchId: null, geoState: 'idle', photos: [], wake: null, busy: false };
+
+  /* ---------- 時刻 ---------- */
+  var dtf = null;
+  try {
+    dtf = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+    });
+  } catch (e) { dtf = null; }
+
+  function jst(d) {
+    var o = { y: '', m: '', d: '', hh: '', mm: '', ss: '' };
+    if (dtf) {
+      dtf.formatToParts(d).forEach(function (p) {
+        if (p.type === 'year') o.y = p.value;
+        if (p.type === 'month') o.m = p.value;
+        if (p.type === 'day') o.d = p.value;
+        if (p.type === 'hour') o.hh = p.value;
+        if (p.type === 'minute') o.mm = p.value;
+        if (p.type === 'second') o.ss = p.value;
+      });
+    } else {
+      var t = new Date(d.getTime() + 9 * 3600 * 1000);
+      var z = function (n) { return String(n).padStart(2, '0'); };
+      o = { y: String(t.getUTCFullYear()), m: z(t.getUTCMonth() + 1), d: z(t.getUTCDate()), hh: z(t.getUTCHours()), mm: z(t.getUTCMinutes()), ss: z(t.getUTCSeconds()) };
+    }
+    if (o.hh === '24') o.hh = '00';
+    return o;
+  }
+  function fmtJst(d) { var o = jst(d); return o.y + '-' + o.m + '-' + o.d + ' ' + o.hh + ':' + o.mm + ':' + o.ss; }
+  function stampJst(d) { var o = jst(d); return o.y + o.m + o.d + '-' + o.hh + o.mm + o.ss; }
+  function pad(n, w) { return String(n).padStart(w || 3, '0'); }
+
+  /* ---------- 画面表示 ---------- */
+  function notice(msg) {
+    var n = $('notice');
+    if (!msg) { n.hidden = true; n.textContent = ''; return; }
+    n.textContent = msg; n.hidden = false;
+  }
+
+  function fixAgeMs() { return st.fix ? Date.now() - st.fix.at : Infinity; }
+
+  function renderStatus() {
+    $('clock').textContent = fmtJst(new Date());
+    var pill = $('gpsPill');
+    var cls = 'pill', txt = '位置情報: 未開始';
+    if (st.geoState === 'denied') { cls += ' bad'; txt = '位置情報: 許可されていません'; }
+    else if (st.geoState === 'unsupported') { cls += ' bad'; txt = '位置情報: このブラウザでは使えません'; }
+    else if (st.geoState === 'waiting') { cls += ' warn'; txt = '位置情報: 取得中'; }
+    else if (st.fix) {
+      var acc = Math.round(st.fix.acc);
+      if (fixAgeMs() > STALE_MS) { cls += ' warn'; txt = '位置情報: 更新が止まっています'; }
+      else if (st.fix.acc > WARN_ACC) { cls += ' warn'; txt = '位置情報: 精度 ±' + acc + 'm(要注意)'; }
+      else { cls += ' ok'; txt = '位置情報: 良好 ±' + acc + 'm'; }
+    }
+    pill.className = cls; pill.textContent = txt;
+
+    var drift = st.fix && Math.abs(Date.now() - st.fix.ts) > DRIFT_MS;
+    $('drift').hidden = !drift;
+
+    var cameraOn = !!st.stream;
+    var gpsOk = !!st.fix && fixAgeMs() <= STALE_MS;
+    $('shutter').disabled = st.busy || !cameraOn || !(gpsOk || $('allowNoGps').checked);
+    $('stopBtn').hidden = !cameraOn;
+    $('startBtn').hidden = cameraOn;
+    $('idle').hidden = cameraOn;
+    $('hud').hidden = !cameraOn;
+    if (cameraOn) renderHud();
+
+    var an = '';
+    if ($('addrOn').checked) {
+      if (st.addr && dist(st.addr, st.fix || st.addr) < 300) an = '現在の所在地: ' + st.addr.text;
+      else if (st.addrBusy) an = '所在地を確認中…';
+      else if (st.addrErr) an = '所在地を取得できませんでした。通信状態を確認してください(取得できない場合、写真には「所在地 未取得」と入ります)。';
+      else an = '位置が取れ次第、所在地を確認します。';
+    }
+    $('addrNow').textContent = an;
+  }
+
+  function buildLines(info) {
+    var f = info.fix;
+    var line2;
+    if (f) {
+      line2 = (f.lat >= 0 ? '北緯 ' : '南緯 ') + Math.abs(f.lat).toFixed(6) + '°  ' +
+              (f.lon >= 0 ? '東経 ' : '西経 ') + Math.abs(f.lon).toFixed(6) + '°  精度 ±' + Math.round(f.acc) + 'm';
+    } else {
+      line2 = '位置情報なし';
+    }
+    var out = [info.label + ' ' + fmtJst(info.date) + ' (JST)', line2];
+    if (info.addrOn) out.push('所在地 ' + (info.addr ? info.addr.text : '未取得'));
+    out.push('整理番号 ' + (info.caseId || '未入力') + '  担当 ' + (info.who || '未入力') + '  No.' + pad(info.seq));
+    return out;
+  }
+
+  /* ---------- 市区町村名(国土地理院の公開サービスを利用。チェックを入れたときだけ通信する) ---------- */
+  var PREF = ['', '北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県', '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県', '新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県', '岐阜県', '静岡県', '愛知県', '三重県', '滋賀県', '京都府', '大阪府', '兵庫県', '奈良県', '和歌山県', '鳥取県', '島根県', '岡山県', '広島県', '山口県', '徳島県', '香川県', '愛媛県', '高知県', '福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県'];
+  var KYOTO = {
+    '26101': '京都市北区', '26102': '京都市上京区', '26103': '京都市左京区', '26104': '京都市中京区', '26105': '京都市東山区',
+    '26106': '京都市下京区', '26107': '京都市南区', '26108': '京都市右京区', '26109': '京都市伏見区', '26110': '京都市山科区', '26111': '京都市西京区',
+    '26201': '福知山市', '26202': '舞鶴市', '26203': '綾部市', '26204': '宇治市', '26205': '宮津市', '26206': '亀岡市', '26207': '城陽市',
+    '26208': '向日市', '26209': '長岡京市', '26210': '八幡市', '26211': '京田辺市', '26212': '京丹後市', '26213': '南丹市', '26214': '木津川市',
+    '26303': '乙訓郡大山崎町', '26322': '久世郡久御山町', '26343': '綴喜郡井手町', '26344': '綴喜郡宇治田原町', '26364': '相楽郡笠置町',
+    '26365': '相楽郡和束町', '26366': '相楽郡精華町', '26367': '相楽郡南山城村', '26407': '船井郡京丹波町', '26463': '与謝郡伊根町', '26465': '与謝郡与謝野町'
+  };
+  function muniName(code) {
+    var c = String(code);
+    if (KYOTO[c]) return '京都府' + KYOTO[c];
+    var pref = PREF[parseInt(c.slice(0, 2), 10)] || '';
+    return (pref ? pref + ' ' : '') + '市区町村コード' + c;
+  }
+  function dist(a, b) {
+    var R = 6371000, rad = Math.PI / 180;
+    var dLat = (b.lat - a.lat) * rad, dLon = (b.lon - a.lon) * rad;
+    var x = Math.pow(Math.sin(dLat / 2), 2) + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.pow(Math.sin(dLon / 2), 2);
+    return 2 * R * Math.asin(Math.sqrt(x));
+  }
+  async function lookupAddr() {
+    if (!$('addrOn').checked || !st.fix || st.addrBusy) return;
+    var f = { lat: st.fix.lat, lon: st.fix.lon };
+    if (st.addr && dist(st.addr, f) < 100 && Date.now() - st.addr.at < 120000) return;
+    st.addrBusy = true;
+    var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctl) ctl.abort(); }, 6000);
+    try {
+      var url = 'https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress?lat=' + f.lat.toFixed(4) + '&lon=' + f.lon.toFixed(4);
+      var r = await fetch(url, ctl ? { signal: ctl.signal } : undefined);
+      if (!r.ok) throw new Error('http');
+      var j = await r.json();
+      var cd = j && j.results && j.results.muniCd;
+      if (!cd) throw new Error('none');
+      st.addr = { text: muniName(cd), lat: f.lat, lon: f.lon, at: Date.now() };
+      st.addrErr = false;
+    } catch (e) {
+      st.addrErr = true;
+    } finally {
+      clearTimeout(timer);
+      st.addrBusy = false;
+      renderStatus();
+    }
+  }
+
+  function currentInfo(label, date) {
+    var fix = (st.fix && fixAgeMs() <= STALE_MS) ? st.fix : null;
+    var addr = (fix && st.addr && dist(st.addr, fix) < 300 && Date.now() - st.addr.at < 180000) ? st.addr : null;
+    return {
+      label: label, date: date, fix: fix, addr: addr, addrOn: $('addrOn').checked,
+      caseId: $('caseId').value.trim(), who: st.user || '',
+      seq: parseInt($('seq').value, 10) || 1
+    };
+  }
+
+  function renderHud() {
+    var info = currentInfo('撮影日時', new Date());
+    var lines = buildLines(info);
+    var hud = $('hud');
+    hud.textContent = '';
+    lines.forEach(function (l, i) {
+      var d = document.createElement('div');
+      d.textContent = l;
+      if (i === 1 && !info.fix) d.className = 'nogps';
+      hud.appendChild(d);
+    });
+  }
+
+  /* ---------- 位置情報 ---------- */
+  function startGeo() {
+    if (!navigator.geolocation) { st.geoState = 'unsupported'; renderStatus(); return; }
+    if (st.watchId !== null) return;
+    st.geoState = 'waiting';
+    st.watchId = navigator.geolocation.watchPosition(function (p) {
+      st.fix = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy, ts: p.timestamp, at: Date.now() };
+      st.geoState = 'fix';
+      renderStatus();
+      lookupAddr();
+    }, function (err) {
+      if (err && err.code === 1) {
+        st.geoState = 'denied';
+        notice('位置情報が許可されていません。ブラウザのアドレス欄付近の設定から、このページの位置情報を「許可」にして、ページを開き直してください。');
+      } else {
+        if (!st.fix) st.geoState = 'waiting';
+      }
+      renderStatus();
+    }, { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 });
+  }
+
+  /* ---------- カメラ ---------- */
+  async function startCamera() {
+    notice('');
+    startGeo();
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      notice('このブラウザではカメラを直接使えません。下の「撮影済みの写真を選ぶ」を使ってください。');
+      return;
+    }
+    try {
+      var stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false
+      });
+      st.stream = stream;
+      var v = $('video');
+      v.srcObject = stream;
+      await v.play();
+      try { if (navigator.wakeLock) st.wake = await navigator.wakeLock.request('screen'); } catch (e) { st.wake = null; }
+    } catch (e) {
+      st.stream = null;
+      var name = e && e.name;
+      if (name === 'NotAllowedError' || name === 'SecurityError') notice('カメラが許可されていません。ブラウザの設定でこのページのカメラを「許可」にして、ページを開き直してください。');
+      else if (name === 'NotFoundError' || name === 'OverconstrainedError') notice('カメラが見つかりません。下の「撮影済みの写真を選ぶ」を使ってください。');
+      else if (name === 'NotReadableError') notice('カメラが他のアプリで使われています。他のアプリを閉じてからやり直してください。');
+      else notice('カメラを開始できませんでした(' + (name || '不明なエラー') + ')。');
+    }
+    renderStatus();
+  }
+
+  function stopCamera() {
+    if (st.stream) st.stream.getTracks().forEach(function (t) { t.stop(); });
+    st.stream = null;
+    $('video').srcObject = null;
+    try { if (st.wake) st.wake.release(); } catch (e) { /* 無視 */ }
+    st.wake = null;
+    renderStatus();
+  }
+
+  /* ---------- 焼き付け ---------- */
+  /* 黒い帯は使わず、写真の上に白い文字を直接置く。明るい壁や空でも読めるよう、ごく細い暗色の縁だけ付ける。 */
+  function drawBurn(ctx, w, h, lines, noGps) {
+    var fs = Math.max(12, Math.min(w, h) * 0.024);
+    ctx.font = '500 ' + fs + 'px ' + FONT;
+    var pad2 = fs * 0.9;
+    var avail = w - pad2 * 2;
+    var maxw = 0;
+    lines.forEach(function (l) { maxw = Math.max(maxw, ctx.measureText(l).width); });
+    if (maxw > avail) { fs = fs * avail / maxw; ctx.font = '500 ' + fs + 'px ' + FONT; pad2 = fs * 0.9; }
+    var lh = fs * 1.35;
+    var y0 = h - pad2 - lh * lines.length;
+    ctx.textBaseline = 'top';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(1, fs * 0.1);
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+    lines.forEach(function (l, i) {
+      var y = y0 + i * lh;
+      ctx.strokeText(l, pad2, y);
+      ctx.fillStyle = (i === 1 && noGps) ? '#ffc247' : '#ffffff';
+      ctx.fillText(l, pad2, y);
+    });
+  }
+
+  async function sha256(blob) {
+    try {
+      if (!window.crypto || !crypto.subtle) return '';
+      var buf = await blob.arrayBuffer();
+      var h = await crypto.subtle.digest('SHA-256', buf);
+      return Array.prototype.map.call(new Uint8Array(h), function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+    } catch (e) { return ''; }
+  }
+
+  function safeName(s) {
+    var t = String(s || '').replace(/[^A-Za-z0-9_\-぀-ヿ一-鿿]/g, '_');
+    return t || 'case';
+  }
+
+  async function addPhoto(source, w, h, method) {
+    if (st.busy) return;
+    st.busy = true; renderStatus();
+    try {
+      var date = new Date();
+      var info = currentInfo(method === 'camera' ? '撮影日時' : '焼付日時', date);
+      var cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      var ctx = cv.getContext('2d');
+      ctx.drawImage(source, 0, 0, w, h);
+      drawBurn(ctx, w, h, buildLines(info), !info.fix);
+      var blob = await new Promise(function (res) { cv.toBlob(res, 'image/jpeg', 0.92); });
+      if (!blob) { notice('写真の変換に失敗しました。もう一度撮影してください。'); return; }
+      var sha = await sha256(blob);
+      var name = safeName(info.caseId) + '_' + stampJst(date) + '_' + pad(info.seq) + '.jpg';
+      st.photos.push({
+        filename: name, blob: blob, url: URL.createObjectURL(blob), saved: false, sha: sha, method: method,
+        date: date, fix: info.fix, addr: info.addrOn ? (info.addr ? info.addr.text : '未取得') : '',
+        caseId: info.caseId, who: info.who, seq: info.seq, w: w, h: h
+      });
+      $('seq').value = info.seq + 1;
+      notice('');
+      render();
+    } catch (e) {
+      notice('撮影に失敗しました(' + (e && e.name ? e.name : '不明なエラー') + ')。');
+    } finally {
+      st.busy = false; renderStatus();
+    }
+  }
+
+  async function onShutter() {
+    var v = $('video');
+    if (!st.stream || !v.videoWidth) { notice('カメラの映像がまだ映っていません。少し待ってからもう一度押してください。'); return; }
+    await addPhoto(v, v.videoWidth, v.videoHeight, 'camera');
+  }
+
+  async function onFile(ev) {
+    var f = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if (!f) return;
+    startGeo();
+    try {
+      var bmp = await createImageBitmap(f);
+      await addPhoto(bmp, bmp.width, bmp.height, 'import');
+      if (bmp.close) bmp.close();
+    } catch (e) {
+      notice('この写真を読み込めませんでした。JPEGまたはPNGの写真を選んでください。');
+    }
+  }
+
+  /* ---------- 保存 ---------- */
+  function download(blob, name) {
+    var url = (typeof blob === 'string') ? blob : URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    if (typeof blob !== 'string') setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+  }
+
+  function savePhoto(p) { download(p.url, p.filename); p.saved = true; render(); }
+
+  function saveAll() {
+    var todo = st.photos.filter(function (p) { return !p.saved; });
+    todo.forEach(function (p, i) { setTimeout(function () { savePhoto(p); }, i * 500); });
+  }
+
+  function csvText(v) {
+    var s = String(v == null ? '' : v);
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    if (/[",\n\r]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+  function csvNum(v) { return v == null ? '' : String(v); }
+
+  function saveCsv() {
+    var head = ['連番', 'ファイル名', '整理番号', '担当者', '方法', '日時(日本時間)', 'GPS時刻(日本時間)', '緯度', '経度', '精度(m)', '所在地(市区町村)', 'SHA-256', '地図URL'];
+    var rows = [head.join(',')];
+    st.photos.forEach(function (p) {
+      var f = p.fix;
+      rows.push([
+        csvNum(p.seq), csvText(p.filename), csvText(p.caseId), csvText(p.who),
+        p.method === 'camera' ? 'カメラ撮影' : '写真取込(焼付時の日時)',
+        fmtJst(p.date), f ? fmtJst(new Date(f.ts)) : '',
+        f ? f.lat.toFixed(6) : '位置情報なし', f ? f.lon.toFixed(6) : '', f ? String(Math.round(f.acc)) : '',
+        csvText(p.addr),
+        p.sha, f ? 'https://www.google.com/maps?q=' + f.lat.toFixed(6) + ',' + f.lon.toFixed(6) : ''
+      ].join(','));
+    });
+    var blob = new Blob(['﻿' + rows.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' });
+    download(blob, 'photo-log_' + stampJst(new Date()) + '.csv');
+  }
+
+  /* ---------- 一覧 ---------- */
+  function render() {
+    var list = $('list');
+    list.textContent = '';
+    if (!st.photos.length) {
+      var e = document.createElement('p');
+      e.className = 'empty';
+      e.textContent = 'まだ撮影していません。カメラを開始して、最初の1枚を撮影してください。';
+      list.appendChild(e);
+    }
+    st.photos.slice().reverse().forEach(function (p) {
+      var item = document.createElement('div'); item.className = 'item';
+      var img = document.createElement('img'); img.src = p.url; img.alt = '撮影した写真 No.' + pad(p.seq);
+      var meta = document.createElement('div'); meta.className = 'meta';
+      var nm = document.createElement('div'); nm.className = 'name'; nm.textContent = p.filename;
+      var inf = document.createElement('div'); inf.className = 'info';
+      inf.textContent = fmtJst(p.date) + (p.fix ? '  ' + p.fix.lat.toFixed(5) + ', ' + p.fix.lon.toFixed(5) + ' ±' + Math.round(p.fix.acc) + 'm' : '  位置情報なし');
+      var acts = document.createElement('div'); acts.className = 'acts';
+      var tag = document.createElement('span'); tag.className = 'tag' + (p.saved ? ' saved' : ''); tag.textContent = p.saved ? '保存済み' : '未保存';
+      var sb = document.createElement('button'); sb.type = 'button'; sb.textContent = p.saved ? 'もう一度保存' : '保存';
+      sb.addEventListener('click', function () { savePhoto(p); });
+      acts.appendChild(tag); acts.appendChild(sb);
+      if (!p.saved) {
+        var db = document.createElement('button'); db.type = 'button'; db.textContent = '破棄';
+        db.addEventListener('click', function () {
+          st.photos = st.photos.filter(function (x) { return x !== p; });
+          URL.revokeObjectURL(p.url); render();
+        });
+        acts.appendChild(db);
+      }
+      meta.appendChild(nm); meta.appendChild(inf); meta.appendChild(acts);
+      item.appendChild(img); item.appendChild(meta);
+      list.appendChild(item);
+    });
+    var unsaved = st.photos.filter(function (p) { return !p.saved; }).length;
+    $('count').textContent = st.photos.length ? '(' + st.photos.length + '枚 / 未保存 ' + unsaved + '枚)' : '';
+    $('saveAll').disabled = unsaved === 0;
+    $('csvBtn').disabled = st.photos.length === 0;
+  }
+
+  /* ---------- 入力欄の記憶(この端末のブラウザ内のみ) ---------- */
+  function loadForm() {
+    try {
+      var s = JSON.parse(localStorage.getItem('genbaPhoto') || '{}');
+      if (s.caseId) $('caseId').value = s.caseId;
+      if (s.addrOn) $('addrOn').checked = true;
+    } catch (e) { /* 記憶なしで続行 */ }
+  }
+  function saveForm() {
+    try { localStorage.setItem('genbaPhoto', JSON.stringify({ caseId: $('caseId').value, addrOn: $('addrOn').checked })); } catch (e) { /* 無視 */ }
+  }
+
+  /* ---------- 配線 ---------- */
+  $('startBtn').addEventListener('click', startCamera);
+  $('stopBtn').addEventListener('click', stopCamera);
+  $('shutter').addEventListener('click', onShutter);
+  $('fileIn').addEventListener('change', onFile);
+  $('saveAll').addEventListener('click', saveAll);
+  $('csvBtn').addEventListener('click', saveCsv);
+  $('allowNoGps').addEventListener('change', renderStatus);
+  $('addrOn').addEventListener('change', function () { saveForm(); st.addrErr = false; renderStatus(); lookupAddr(); });
+  $('caseId').addEventListener('change', function () { $('seq').value = 1; saveForm(); });
+
+  window.addEventListener('beforeunload', function (e) {
+    if (st.photos.some(function (p) { return !p.saved; })) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  /* ---------- ログイン ----------
+     パスワードそのものはこのファイルに入れず、ソルト付きのPBKDF2ハッシュだけを持つ。
+     ただし、この確認は端末の中だけで行うため、ファイルを書き換えられる人には突破できる。
+     職員の識別と、うっかり使用の防止が目的。職員を追加するときは staff-entry-tool.html で行を作る。 */
+  var STAFF = [
+    { id: 's-minamitani', iter: 210000, salt: 'b8e0dd68c95d2c5b251763b0ef06f04b', hash: '928799312eb37e178f831ccf1a0a7305e96691cd72414384a538847fcd6f052e' }
+  ];
+  var IDLE_MS = 30 * 60 * 1000;
+  var FAIL_LIMIT = 5;
+
+  function unhex(h) {
+    var out = new Uint8Array(h.length / 2);
+    for (var i = 0; i < out.length; i++) out[i] = parseInt(h.substr(i * 2, 2), 16);
+    return out;
+  }
+  async function derive(pw, saltHex, iter) {
+    var key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveBits']);
+    var bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: unhex(saltHex), iterations: iter }, key, 256);
+    return Array.prototype.map.call(new Uint8Array(bits), function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+  }
+  function sameStr(a, b) {
+    if (a.length !== b.length) return false;
+    var d = 0;
+    for (var i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    return d === 0;
+  }
+
+  function loginMsg(msg) {
+    var m = $('loginMsg');
+    m.textContent = msg || '';
+    m.hidden = !msg;
+  }
+
+  function showLogin(sub, lockedId) {
+    $('appRoot').hidden = true;
+    $('loginRoot').hidden = false;
+    $('loginSub').textContent = sub || '職員IDを選んで、パスワードを入力してください';
+    var sel = $('staffSel');
+    sel.textContent = '';
+    STAFF.forEach(function (s) {
+      if (lockedId && s.id !== lockedId) return;
+      var o = document.createElement('option'); o.value = s.id; o.textContent = s.id; sel.appendChild(o);
+    });
+    $('pw').value = '';
+    loginMsg('');
+    setTimeout(function () { try { $('pw').focus(); } catch (e) { /* 無視 */ } }, 50);
+  }
+
+  function showApp() {
+    $('loginRoot').hidden = true;
+    $('appRoot').hidden = false;
+    $('whoShow').textContent = st.user;
+    st.lastAct = Date.now();
+    render();
+    renderStatus();
+  }
+
+  async function onLogin(ev) {
+    ev.preventDefault();
+    var now = Date.now();
+    if (st.lockUntil && now < st.lockUntil) {
+      loginMsg('パスワードを続けて間違えました。' + Math.ceil((st.lockUntil - now) / 1000) + '秒後にもう一度お試しください。');
+      return;
+    }
+    if (!window.crypto || !crypto.subtle) {
+      loginMsg('このブラウザではログイン処理を行えません。ファイルをブラウザで直接開いているか確認してください。');
+      return;
+    }
+    var id = $('staffSel').value;
+    var rec = STAFF.filter(function (s) { return s.id === id; })[0];
+    var pw = $('pw').value;
+    $('loginBtn').disabled = true;
+    try {
+      var h = rec ? await derive(pw, rec.salt, rec.iter) : '';
+      if (rec && pw && sameStr(h, rec.hash)) {
+        st.fails = 0; st.lockUntil = 0;
+        st.user = id;
+        $('pw').value = '';
+        if (st.lockedUser && st.lockedUser !== id) { return; }
+        st.lockedUser = null;
+        showApp();
+      } else {
+        st.fails = (st.fails || 0) + 1;
+        if (st.fails >= FAIL_LIMIT) {
+          st.lockUntil = Date.now() + 30000 * (st.fails - FAIL_LIMIT + 1);
+          loginMsg('パスワードを続けて間違えました。しばらく待ってからお試しください。');
+        } else {
+          loginMsg('職員IDまたはパスワードが違います。');
+        }
+        $('pw').value = '';
+      }
+    } catch (e) {
+      loginMsg('ログイン処理に失敗しました。ページを開き直してください。');
+    } finally {
+      $('loginBtn').disabled = false;
+    }
+  }
+
+  function unsavedCount() { return st.photos.filter(function (p) { return !p.saved; }).length; }
+
+  function doLogout() {
+    stopCamera();
+    st.photos.forEach(function (p) { URL.revokeObjectURL(p.url); });
+    st.photos = [];
+    st.user = null; st.lockedUser = null; st.logoutArm = false;
+    $('seq').value = 1;
+    $('logoutBtn').textContent = 'ログアウト';
+    notice('');
+    render();
+    showLogin();
+  }
+
+  function onLogoutClick() {
+    var n = unsavedCount();
+    if (n > 0 && !st.logoutArm) {
+      st.logoutArm = true;
+      $('logoutBtn').textContent = '未保存を破棄してログアウト';
+      notice('未保存の写真が' + n + '枚あります。先に保存するか、もう一度ボタンを押して破棄してください。');
+      setTimeout(function () {
+        if (st.logoutArm) { st.logoutArm = false; $('logoutBtn').textContent = 'ログアウト'; }
+      }, 8000);
+      return;
+    }
+    doLogout();
+  }
+
+  function idleCheck() {
+    if (!st.user || st.lockedUser) return;
+    if (Date.now() - st.lastAct < IDLE_MS) return;
+    if (unsavedCount() > 0) {
+      /* 未保存の写真が残っているときは、同じ職員のパスワードで再開できるようロックだけ行う */
+      stopCamera();
+      st.lockedUser = st.user;
+      showLogin('しばらく操作がなかったため、画面をロックしました。未保存の写真があるため、同じ職員IDのパスワードで再開してください。', st.user);
+    } else {
+      doLogout();
+    }
+  }
+
+  ['pointerdown', 'keydown', 'touchstart'].forEach(function (t) {
+    document.addEventListener(t, function () { st.lastAct = Date.now(); }, { passive: true });
+  });
+  $('loginForm').addEventListener('submit', onLogin);
+  $('logoutBtn').addEventListener('click', onLogoutClick);
+
+  loadForm();
+  render();
+  renderStatus();
+  setInterval(renderStatus, 1000);
+  setInterval(idleCheck, 10000);
+  showLogin();
+})();
+</script>
+</body>
+</html>
