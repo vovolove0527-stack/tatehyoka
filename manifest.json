@@ -1,0 +1,15 @@
+{
+  "name": "損害評価",
+  "short_name": "損害評価",
+  "start_url": "./",
+  "display": "standalone",
+  "theme_color": "#1e8f27",
+  "background_color": "#1e8f27",
+  "icons": [
+    {
+      "src": "icon.png.jpeg",
+      "sizes": "1024x1024",
+      "type": "image/jpeg"
+    }
+  ]
+}
