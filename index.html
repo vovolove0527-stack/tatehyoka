@@ -362,7 +362,7 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
     }
     var out = [info.label + ' ' + fmtJst(info.date) + ' (JST)', line2];
     if (info.addrOn) out.push('所在地 ' + (info.addr ? info.addr.text : '未取得'));
-    out.push('整理番号 ' + (info.caseId || '未入力') + '  担当 ' + (info.who || '未入力') + '  No.' + pad(info.seq));
+    out.push('組合員番号 ' + (info.caseId || '未入力') + '  担当 ' + (info.who || '未入力') + '  No.' + pad(info.seq));
     return out;
   }
 
