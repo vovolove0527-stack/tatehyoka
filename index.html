@@ -235,7 +235,7 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
             <input type="number" id="seq" min="1" step="1" value="1" inputmode="numeric">
           </label>
         </div>
-        <p class="small">組合員の氏名・住所・電話番号は入力しないでください。写真は整理番号で管理します。</p>
+        <p class="small">組合員の氏名・住所・電話番号は入力しないでください。写真は組合員番号（証券番号）で管理します。</p>
       </section>
 
       <section class="panel" aria-label="撮影一覧">
@@ -355,8 +355,8 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
     var f = info.fix;
     var line2;
     if (f) {
-      line2 = (f.lat >= 0 ? '北緯 ' : '南緯 ') + Math.abs(f.lat).toFixed(6) + '°  ' +
-              (f.lon >= 0 ? '東経 ' : '西経 ') + Math.abs(f.lon).toFixed(6) + '°  精度 ±' + Math.round(f.acc) + 'm';
+      line2 = (f.lat >= 0 ? 'N ' : 'S ') + Math.abs(f.lat).toFixed(6) + '°  ' +
+              (f.lon >= 0 ? 'E ' : 'W ') + Math.abs(f.lon).toFixed(6) + '°  精度 ±' + Math.round(f.acc) + 'm';
     } else {
       line2 = '位置情報なし';
     }
