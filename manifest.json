@@ -1,6 +1,6 @@
 {
-  "name": "損害評価",
-  "short_name": "損害評価",
+  "name": "NOSAIアプリ",
+  "short_name": "NOSAIAp",
   "start_url": "./",
   "display": "standalone",
   "theme_color": "#1e8f27",
