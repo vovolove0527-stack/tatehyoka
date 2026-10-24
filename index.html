@@ -170,7 +170,7 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
 <main class="login" id="loginRoot">
   <form class="panel" id="loginForm" autocomplete="off">
     <div>
-      <h1>建物共済 現場写真記録</h1>
+      <h1>建物共済 損害評価写真</h1>
       <p class="sub" id="loginSub">職員IDを選んで、パスワードを入力してください</p>
     </div>
     <label class="field">職員ID
@@ -745,6 +745,8 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
     $('appRoot').hidden = false;
     $('whoShow').textContent = st.user;
     st.lastAct = Date.now();
+   // ★ アプリ起動時に組合員番号の入力を促すアラームを表示
+    notice('⚠️ 撮影を始める前に、必ず「組合員番号（証券番号）」を入力してください。');
     render();
     renderStatus();
   }
