@@ -459,6 +459,13 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
 
   /* ---------- カメラ ---------- */
   async function startCamera() {
+// ★ ここから追加
+  var isEntered = window.confirm('組合員番号（証券番号）の入力はしましたか？\n\n[はい] カメラを起動します\n[いいえ] 入力欄に戻ります');
+  if (!isEntered) {
+    $('caseId').focus(); // 入力欄にカーソルを合わせる
+    return; // カメラを起動せずにストップする
+  }
+  // 
     notice('');
     startGeo();
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
