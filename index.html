@@ -16,6 +16,25 @@
 <meta name="color-scheme" content="light dark">
 <title>現場写真記録</title>
 <style>
+/* 組合員番号入力欄の強調表示 */
+.highlight-focus {
+  border: 3px solid #1e8f27 !important;
+  background-color: #e8f5e9 !important;
+  box-shadow: 0 0 12px rgba(30, 143, 39, 0.6);
+  animation: pulse-border 1s infinite alternate;
+}
+
+@keyframes pulse-border {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 6px rgba(30, 143, 39, 0.4);
+  }
+  100% {
+    transform: scale(1.02);
+    box-shadow: 0 0 14px rgba(30, 143, 39, 0.8);
+  }
+}
+
 /* レイアウト: 左に撮影画面、右に案件入力と撮影一覧。狭い画面では縦に積む。屋外で使うため操作部は大きく、コントラストは高く。 */
 :root {
   --bg: #edf0ec;
@@ -759,8 +778,21 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
     notice('⚠️ 撮影を始める前に、必ず「組合員番号（証券番号）」を入力してください。');
     render();
     renderStatus();
-  }
 
+  // ★ ここを追加：組合員番号入力欄にフォーカスを合わせ、強調効果をつける
+    setTimeout(function () {
+      var caseInput = $('caseId');
+      if (caseInput) {
+        caseInput.focus();
+        // 強調表示用のクラスを付与
+        caseInput.classList.add('highlight-focus');
+        // 3秒後に強調表示を自然に解除
+        setTimeout(function () {
+          caseInput.classList.remove('highlight-focus');
+        }, 3000);
+      }
+    }, 100);
+  }
   async function onLogin(ev) {
     ev.preventDefault();
     var now = Date.now();
