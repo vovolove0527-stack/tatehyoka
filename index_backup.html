@@ -1,19 +1,50 @@
 <!doctype html>
 <html lang="ja">
-<head><link rel="manifest" href="manifest.json">
+<head>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.jpeg" type="image/jpeg">
+<link rel="apple-touch-icon" href="icon.jpeg">
 
 <meta name="theme-color" content="#1e8f27">
-
 <meta name="apple-mobile-web-app-capable" content="yes">
-
 <meta name="mobile-web-app-capable" content="yes">
-
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>現場写真記録</title>
+
 <style>
-/* レイアウト: 左に撮影画面、右に案件入力と撮影一覧。狭い画面では縦に積む。屋外で使うため操作部は大きく、コントラストは高く。 */
+/* 組合員番号入力欄の強調表示 */
+.highlight-focus {
+  border: 3px solid #1e8f27 !important;
+  background-color: #e8f5e9 !important;
+  box-shadow: 0 0 12px rgba(30, 143, 39, 0.6);
+  animation: pulse-border 1s infinite alternate;
+}
+
+@keyframes pulse-border {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 6px rgba(30, 143, 39, 0.4);
+  }
+  100% {
+    transform: scale(1.02);
+    box-shadow: 0 0 14px rgba(30, 143, 39, 0.8);
+  }
+}
+
+/* 組合員番号未入力時の点滅強調表示（濃淡でなめらかに光る設定） */
+@keyframes hud-blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.35; }
+  100% { opacity: 1; }
+}
+.hud .unentered {
+  color: #ffc247;
+  font-weight: 700;
+  animation: hud-blink 1s infinite ease-in-out;
+}
+
 :root {
   --bg: #edf0ec;
   --surface: #ffffff;
@@ -69,13 +100,6 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; }
-<script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./service-worker.js')
-    .then(() => console.log('Service Worker OK'))
-    .catch(err => console.log(err));
-}
-</script>
 
 body {
   background: var(--bg);
@@ -166,11 +190,22 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
 .notes strong { color: var(--fg); }
 </style>
 </head>
+
+<!-- ★ Service Workerのスクリプトは <style> の外（下）に出します -->
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./service-worker.js')
+    .then(() => console.log('Service Worker OK'))
+    .catch(err => console.log(err));
+}
+</script>
+
+</head>
 <body>
 <main class="login" id="loginRoot">
   <form class="panel" id="loginForm" autocomplete="off">
     <div>
-      <h1>建物共済 現場写真記録</h1>
+      <h1>建物共済 損害評価写真</h1>
       <p class="sub" id="loginSub">職員IDを選んで、パスワードを入力してください</p>
     </div>
     <label class="field">職員ID
@@ -216,7 +251,7 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
       <label class="check"><input type="checkbox" id="addrOn"><span>市区町村名を焼き付ける(オンにすると、現在地の緯度経度を国土地理院の公開サービスに送って市区町村名を調べます)</span></label>
       <p class="small" id="addrNow" role="status"></p>
       <div class="controls">
-        <label class="filebtn">カメラが使えない場合: 撮影済みの写真を選ぶ<input type="file" id="fileIn" accept="image/*" capture="environment"></label>
+        <label class="filebtn">カメラが使えない場合: 撮影済みの写真を選ぶ<input type="file" id="fileIn" accept="image/jpeg,image/png,image/heic,image/heif,image/*"></label>
       </div>
       <p class="small">写真を選ぶ方法では、写真の撮影時刻ではなく、選んだ時点の日時とGPSが「焼付日時」として焼き付きます。</p>
     </section>
@@ -225,8 +260,8 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
       <section class="panel" aria-label="案件情報">
         <h2>案件情報</h2>
         <div class="fields">
-          <label class="field wide">整理番号
-            <input type="text" id="caseId" autocomplete="off" placeholder="例: 建-2026-0001">
+          <label class="field wide">組合員番号（証券番号）
+            <input type="text" id="caseId" autocomplete="off" placeholder="例: 08-12345678-001">
           </label>
           <div class="field">担当者(ログイン中の職員ID)
             <div class="readonly" id="whoShow">-</div>
@@ -235,7 +270,7 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
             <input type="number" id="seq" min="1" step="1" value="1" inputmode="numeric">
           </label>
         </div>
-        <p class="small">組合員の氏名・住所・電話番号は入力しないでください。写真は整理番号で管理します。</p>
+        <p class="small">組合員の氏名・住所・電話番号は入力しないでください。写真は組合員番号（証券番号）で管理します。</p>
       </section>
 
       <section class="panel" aria-label="撮影一覧">
@@ -355,14 +390,14 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
     var f = info.fix;
     var line2;
     if (f) {
-      line2 = (f.lat >= 0 ? '北緯 ' : '南緯 ') + Math.abs(f.lat).toFixed(6) + '°  ' +
-              (f.lon >= 0 ? '東経 ' : '西経 ') + Math.abs(f.lon).toFixed(6) + '°  精度 ±' + Math.round(f.acc) + 'm';
+      line2 = (f.lat >= 0 ? 'N ' : 'S ') + Math.abs(f.lat).toFixed(6) + '°  ' +
+              (f.lon >= 0 ? 'E ' : 'W ') + Math.abs(f.lon).toFixed(6) + '°  精度 ±' + Math.round(f.acc) + 'm';
     } else {
       line2 = '位置情報なし';
     }
     var out = [info.label + ' ' + fmtJst(info.date) + ' (JST)', line2];
     if (info.addrOn) out.push('所在地 ' + (info.addr ? info.addr.text : '未取得'));
-    out.push('整理番号 ' + (info.caseId || '未入力') + '  担当 ' + (info.who || '未入力') + '  No.' + pad(info.seq));
+    out.push('組合員番号 ' + (info.caseId || '未入力') + '  担当 ' + (info.who || '未入力') + '  No.' + pad(info.seq));
     return out;
   }
 
@@ -423,18 +458,50 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
     };
   }
 
-  function renderHud() {
+         function renderHud() {
     var info = currentInfo('撮影日時', new Date());
     var lines = buildLines(info);
     var hud = $('hud');
     hud.textContent = '';
     lines.forEach(function (l, i) {
       var d = document.createElement('div');
-      d.textContent = l;
-      if (i === 1 && !info.fix) d.className = 'nogps';
+
+      if (i === 1 && !info.fix) {
+        d.className = 'nogps';
+      }
+
+      // 組合員番号の行かどうかを判定
+      if (l.indexOf('組合員番号') !== -1) {
+        // 例: "組合員番号 未入力  担当 s-minamitani  No.001" を安全に組み立てる
+        var caseIdVal = info.caseId ? info.caseId : '未入力';
+        var whoVal = info.who ? info.who : '未入力';
+        var seqVal = pad(info.seq);
+
+        // ラベル部分
+        var textNode1 = document.createTextNode('組合員番号 ');
+        d.appendChild(textNode1);
+
+        // 組合員番号（または未入力）のspan
+        var spanCase = document.createElement('span');
+        spanCase.textContent = caseIdVal;
+        if (!info.caseId) {
+          spanCase.className = 'unentered'; // 未入力のときだけここが点滅する
+        }
+        d.appendChild(spanCase);
+
+        // 担当者以降の残りのテキスト
+        var textNode2 = document.createTextNode('  担当 ' + whoVal + '  No.' + seqVal);
+        d.appendChild(textNode2);
+
+      } else {
+        d.textContent = l;
+      }
+
       hud.appendChild(d);
     });
   }
+
+
 
   /* ---------- 位置情報 ---------- */
   function startGeo() {
@@ -459,6 +526,13 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
 
   /* ---------- カメラ ---------- */
   async function startCamera() {
+// ★ ここから追加
+  var isEntered = window.confirm('組合員番号（証券番号）の入力はしましたか？\n\n[ok] カメラを起動します\n[cancel] 入力欄に戻ります');
+  if (!isEntered) {
+    $('caseId').focus(); // 入力欄にカーソルを合わせる
+    return; // カメラを起動せずにストップする
+  }
+  // 
     notice('');
     startGeo();
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -583,8 +657,28 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
     }
   }
 
-  /* ---------- 保存 ---------- */
-  function download(blob, name) {
+    /* ---------- 保存 ---------- */
+  async function download(blob, name) {
+    // iPhoneやiPad（iOS / iPadOS）かどうかを判別する
+    var isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    // iOSのときだけ、ダウンロードブロック回避の共有機能を使う
+    if (isIOS && navigator.share && navigator.canShare && blob instanceof Blob) {
+      try {
+        var file = new File([blob], name, { type: blob.type });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: name
+          });
+          return;
+        }
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+      }
+    }
+
+    // AndroidやWindowsタブレット、PCなどは、通常のダウンロード処理を行う
     var url = (typeof blob === 'string') ? blob : URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url; a.download = name;
@@ -624,6 +718,7 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
     var blob = new Blob(['﻿' + rows.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' });
     download(blob, 'photo-log_' + stampJst(new Date()) + '.csv');
   }
+
 
   /* ---------- 一覧 ---------- */
   function render() {
@@ -745,10 +840,25 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
     $('appRoot').hidden = false;
     $('whoShow').textContent = st.user;
     st.lastAct = Date.now();
+   // ★ アプリ起動時に組合員番号の入力を促すアラームを表示
+    notice('⚠️ 撮影を始める前に、必ず「組合員番号（証券番号）」を入力してください。');
     render();
     renderStatus();
-  }
 
+  // ★ ここを追加：組合員番号入力欄にフォーカスを合わせ、強調効果をつける
+    setTimeout(function () {
+      var caseInput = $('caseId');
+      if (caseInput) {
+        caseInput.focus();
+        // 強調表示用のクラスを付与
+        caseInput.classList.add('highlight-focus');
+        // 3秒後に強調表示を自然に解除
+        setTimeout(function () {
+          caseInput.classList.remove('highlight-focus');
+        }, 3000);
+      }
+    }, 100);
+  }
   async function onLogin(ev) {
     ev.preventDefault();
     var now = Date.now();
