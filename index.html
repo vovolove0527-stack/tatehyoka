@@ -612,8 +612,28 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
     }
   }
 
-  /* ---------- 保存 ---------- */
-  function download(blob, name) {
+    /* ---------- 保存 ---------- */
+  async function download(blob, name) {
+    // iPhoneやiPad（iOS / iPadOS）かどうかを判別する
+    var isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    // iOSのときだけ、ダウンロードブロック回避の共有機能を使う
+    if (isIOS && navigator.share && navigator.canShare && blob instanceof Blob) {
+      try {
+        var file = new File([blob], name, { type: blob.type });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: name
+          });
+          return;
+        }
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+      }
+    }
+
+    // AndroidやWindowsタブレット、PCなどは、通常のダウンロード処理を行う
     var url = (typeof blob === 'string') ? blob : URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url; a.download = name;
@@ -653,6 +673,7 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
     var blob = new Blob(['﻿' + rows.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' });
     download(blob, 'photo-log_' + stampJst(new Date()) + '.csv');
   }
+
 
   /* ---------- 一覧 ---------- */
   function render() {
