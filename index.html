@@ -23,20 +23,26 @@
 }
 
 @keyframes pulse-border {
-  0% { transform: scale(1); box-shadow: 0 0 6px rgba(30, 143, 39, 0.4); }
-  100% { transform: scale(1.02); box-shadow: 0 0 14px rgba(30, 143, 39, 0.8); }
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 6px rgba(30, 143, 39, 0.4);
+  }
+  100% {
+    transform: scale(1.02);
+    box-shadow: 0 0 14px rgba(30, 143, 39, 0.8);
+  }
 }
 
-/* 組合員番号未入力時の点滅強調表示 */
+/* 組合員番号未入力時の点滅強調表示（濃淡でなめらかに光る設定） */
 @keyframes hud-blink {
-  0% { opacity: 1; color: #ffc247; text-shadow: 0 0 4px rgba(255, 194, 71, 0.8); }
-  50% { opacity: 0.3; color: #ff5252; text-shadow: 0 0 1px rgba(255, 82, 82, 0.3); }
-  100% { opacity: 1; color: #ffc247; text-shadow: 0 0 4px rgba(255, 194, 71, 0.8); }
+  0% { opacity: 1; }
+  50% { opacity: 0.35; }
+  100% { opacity: 1; }
 }
 .hud .unentered {
   color: #ffc247;
   font-weight: 700;
-  animation: hud-blink 0.9s infinite;
+  animation: hud-blink 1s infinite ease-in-out;
 }
 
 :root {
