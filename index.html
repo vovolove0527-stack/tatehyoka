@@ -103,17 +103,6 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; }
-</style>  <!-- ←ここで一度CSSを閉じます -->
-
-<!-- ★ Service Workerのスクリプトは <style> の外（下）に出します -->
-<script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./service-worker.js')
-    .then(() => console.log('Service Worker OK'))
-    .catch(err => console.log(err));
-}
-</script>
-
 
 body {
   background: var(--bg);
@@ -203,6 +192,18 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
 .notes ul { margin: 6px 0 0; padding-left: 1.2em; display: grid; gap: 2px; }
 .notes strong { color: var(--fg); }
 </style>
+
+<!-- ★ Service Workerのスクリプトは <style> の外（下）に出します -->
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./service-worker.js')
+    .then(() => console.log('Service Worker OK'))
+    .catch(err => console.log(err));
+}
+</script>
+
+
+
 </head>
 <body>
 <main class="login" id="loginRoot">
