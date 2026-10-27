@@ -261,8 +261,14 @@ if ('serviceWorker' in navigator) {
         <h2>案件情報</h2>
         <div class="fields">
           <label class="field wide">組合員番号（証券番号）
-            <input type="text" id="caseId" autocomplete="off" placeholder="例: 08-12345678-001">
-          </label>
+  <div style="display: flex; gap: 8px;">
+    <input type="text" id="caseId" autocomplete="off" placeholder="例: 08-12345678-001" style="flex: 1;">
+    <button type="button" id="scanBtn" class="small-btn" style="min-height: 46px; padding: 0 12px;" title="申込書から番号を撮影・読み取り">
+      📸 番号読取
+    </button>
+  </div>
+</label>
+
           <div class="field">担当者(ログイン中の職員ID)
             <div class="readonly" id="whoShow">-</div>
           </div>
@@ -956,4 +962,91 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 </body>
+<!-- ▼ 申込書番号スキャン用の画面とプログラムを追加 ▼ -->
+
+<!-- 申込書番号スキャン用モーダル -->
+<div id="scanModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 16px;">
+  <div style="position: relative; width: 100%; max-width: 500px; background: #000; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+    <video id="scanVideo" autoplay playsinline muted style="width: 100%; height: auto; display: block;"></video>
+    
+    <!-- 8桁の番号を合わせるためのガイド枠（ファインダー） -->
+    <div style="position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;">
+      <div style="width: 80%; height: 70px; border: 2px dashed #5ec99b; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);">
+        <div style="position: absolute; top: -24px; left: 0; color: #5ec99b; font-size: 0.85rem; font-weight: bold; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px;">
+          ここに8桁の組合員番号を合わせてください
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div style="display: flex; gap: 12px; margin-top: 16px; width: 100%; max-width: 500px; justify-content: center;">
+    <button type="button" id="scanCaptureBtn" class="primary" style="flex: 1; min-height: 50px;">この枠内で撮影して読み取る</button>
+    <button type="button" id="scanCloseBtn" style="min-height: 50px; padding: 0 20px;">キャンセル</button>
+  </div>
+</div>
+
+<script>
+// --- 組合員番号スキャン機能 ---
+(function() {
+  var scanModal = document.getElementById('scanModal');
+  var scanVideo = document.getElementById('scanVideo');
+  var scanStream = null;
+
+  // 「📸 番号読取」ボタンを押したとき
+  document.getElementById('scanBtn').addEventListener('click', async function() {
+    scanModal.style.display = 'flex';
+    try {
+      scanStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false
+      });
+      scanVideo.srcObject = scanStream;
+    } catch (err) {
+      alert('カメラを起動できませんでした: ' + err.message);
+      scanModal.style.display = 'none';
+    }
+  });
+
+  // キャンセルボタン
+  document.getElementById('scanCloseBtn').addEventListener('click', function() {
+    stopScanCamera();
+  });
+
+  function stopScanCamera() {
+    if (scanStream) {
+      scanStream.getTracks().forEach(function(track) { track.stop(); });
+      scanStream = null;
+    }
+    scanModal.style.display = 'none';
+  }
+
+  // 「撮影して読み取る」ボタンを押したとき
+  document.getElementById('scanCaptureBtn').addEventListener('click', function() {
+    if (!scanVideo.videoWidth) return;
+
+    var canvas = document.createElement('canvas');
+    canvas.width = scanVideo.videoWidth;
+    canvas.height = scanVideo.videoHeight;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(scanVideo, 0, 0);
+
+    // ガイド枠に対応する位置の画像を切り出し
+    var cropX = canvas.width * 0.1;
+    var cropY = canvas.height * 0.4;
+    var cropW = canvas.width * 0.8;
+    var cropH = canvas.height * 0.2;
+    
+    var cropCanvas = document.createElement('canvas');
+    cropCanvas.width = cropW;
+    cropCanvas.height = cropH;
+    cropCanvas.getContext('2d').drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+    stopScanCamera();
+
+    // プレビュー確認用の仮の処理（ここに文字認識をつなぎこみます）
+    alert('枠内の画像をキャプチャしました！');
+  });
+})();
+</script>
+
 </html>
