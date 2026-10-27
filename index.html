@@ -461,7 +461,7 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
     };
   }
 
-  function renderHud() {
+    function renderHud() {
     var info = currentInfo('撮影日時', new Date());
     var lines = buildLines(info);
     var hud = $('hud');
@@ -469,10 +469,20 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
     lines.forEach(function (l, i) {
       var d = document.createElement('div');
       d.textContent = l;
-      if (i === 1 && !info.fix) d.className = 'nogps';
+      
+      if (i === 1 && !info.fix) {
+        d.className = 'nogps';
+      }
+      
+      // 組合員番号が未入力のとき、その行を点滅させる
+      if (l.indexOf('組合員番号 未入力') !== -1 || (!info.caseId && l.indexOf('組合員番号') !== -1)) {
+        d.className = 'unentered';
+      }
+      
       hud.appendChild(d);
     });
   }
+
 
   /* ---------- 位置情報 ---------- */
   function startGeo() {
