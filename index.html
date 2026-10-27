@@ -458,7 +458,7 @@ if ('serviceWorker' in navigator) {
     };
   }
 
-       function renderHud() {
+         function renderHud() {
     var info = currentInfo('撮影日時', new Date());
     var lines = buildLines(info);
     var hud = $('hud');
@@ -470,11 +470,29 @@ if ('serviceWorker' in navigator) {
         d.className = 'nogps';
       }
       
-      // 組合員番号の行で、かつ未入力の場合：「未入力」の文字だけを span で囲んで点滅させる
-      if (l.indexOf('組合員番号') !== -1 && (!info.caseId || l.indexOf('未入力') !== -1)) {
-        // 「未入力」という文字を安全にHTML内の span に置き換える
-        var htmlText = l.replace('未入力', '<span class="unentered">未入力</span>');
-        d.innerHTML = htmlText;
+      // 組合員番号の行かどうかを判定
+      if (l.indexOf('組合員番号') !== -1) {
+        // 例: "組合員番号 未入力  担当 s-minamitani  No.001" を安全に組み立てる
+        var caseIdVal = info.caseId ? info.caseId : '未入力';
+        var whoVal = info.who ? info.who : '未入力';
+        var seqVal = pad(info.seq);
+
+        // ラベル部分
+        var textNode1 = document.createTextNode('組合員番号 ');
+        d.appendChild(textNode1);
+
+        // 組合員番号（または未入力）のspan
+        var spanCase = document.createElement('span');
+        spanCase.textContent = caseIdVal;
+        if (!info.caseId) {
+          spanCase.className = 'unentered'; // 未入力のときだけここが点滅する
+        }
+        d.appendChild(spanCase);
+
+        // 担当者以降の残りのテキスト
+        var textNode2 = document.createTextNode('  担当 ' + whoVal + '  No.' + seqVal);
+        d.appendChild(textNode2);
+
       } else {
         d.textContent = l;
       }
