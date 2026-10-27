@@ -201,6 +201,8 @@ if ('serviceWorker' in navigator) {
 </script>
 
 </head>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@v5/dist/tesseract.min.js"></script>
+
 <body>
 <main class="login" id="loginRoot">
   <form class="panel" id="loginForm" autocomplete="off">
@@ -969,30 +971,29 @@ if ('serviceWorker' in navigator) {
   <div style="position: relative; width: 100%; max-width: 500px; background: #000; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
     <video id="scanVideo" autoplay playsinline muted style="width: 100%; height: auto; display: block;"></video>
     
-    <!-- 8桁の番号を合わせるためのガイド枠（ファインダー） -->
+    <!-- 8桁の番号を合わせるためのガイド枠（サイズを調整） -->
     <div style="position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;">
-      <div style="width: 80%; height: 70px; border: 2px dashed #5ec99b; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);">
-        <div style="position: absolute; top: -24px; left: 0; color: #5ec99b; font-size: 0.85rem; font-weight: bold; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px;">
-          ここに8桁の組合員番号を合わせてください
+      <div id="scanGuideBox" style="width: 85%; height: 60px; border: 2px solid #5ec99b; border-radius: 6px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); position: relative;">
+        <div style="position: absolute; top: -26px; left: 0; color: #5ec99b; font-size: 0.8rem; font-weight: bold; background: rgba(0,0,0,0.8); padding: 2px 6px; border-radius: 4px; white-space: nowrap;">
+          枠内に番号を合わせてください
         </div>
       </div>
     </div>
   </div>
   
   <div style="display: flex; gap: 12px; margin-top: 16px; width: 100%; max-width: 500px; justify-content: center;">
-    <button type="button" id="scanCaptureBtn" class="primary" style="flex: 1; min-height: 50px;">この枠内で撮影して読み取る</button>
+    <button type="button" id="scanCaptureBtn" class="primary" style="flex: 1; min-height: 50px;">撮影して番号を読み取る</button>
     <button type="button" id="scanCloseBtn" style="min-height: 50px; padding: 0 20px;">キャンセル</button>
   </div>
 </div>
 
 <script>
-// --- 組合員番号スキャン機能 ---
+// --- 組合員番号スキャン＆OCR読み取り機能 ---
 (function() {
   var scanModal = document.getElementById('scanModal');
   var scanVideo = document.getElementById('scanVideo');
   var scanStream = null;
 
-  // 「📸 番号読取」ボタンを押したとき
   document.getElementById('scanBtn').addEventListener('click', async function() {
     scanModal.style.display = 'flex';
     try {
@@ -1007,7 +1008,6 @@ if ('serviceWorker' in navigator) {
     }
   });
 
-  // キャンセルボタン
   document.getElementById('scanCloseBtn').addEventListener('click', function() {
     stopScanCamera();
   });
@@ -1020,22 +1020,29 @@ if ('serviceWorker' in navigator) {
     scanModal.style.display = 'none';
   }
 
-  // 「撮影して読み取る」ボタンを押したとき
-  document.getElementById('scanCaptureBtn').addEventListener('click', function() {
+  // 撮影してOCRで文字認識する処理
+  document.getElementById('scanCaptureBtn').addEventListener('click', async function() {
     if (!scanVideo.videoWidth) return;
 
+    var video = scanVideo;
     var canvas = document.createElement('canvas');
-    canvas.width = scanVideo.videoWidth;
-    canvas.height = scanVideo.videoHeight;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
     var ctx = canvas.getContext('2d');
-    ctx.drawImage(scanVideo, 0, 0);
+    ctx.drawImage(video, 0, 0);
 
-    // ガイド枠に対応する位置の画像を切り出し
-    var cropX = canvas.width * 0.1;
-    var cropY = canvas.height * 0.4;
-    var cropW = canvas.width * 0.8;
-    var cropH = canvas.height * 0.2;
-    
+    // 画面上のガイド枠の位置に合わせて切り出し
+    var rect = document.getElementById('scanGuideBox').getBoundingClientRect();
+    var videoRect = video.getBoundingClientRect();
+
+    var scaleX = canvas.width / videoRect.width;
+    var scaleY = canvas.height / videoRect.height;
+
+    var cropX = (rect.left - videoRect.left) * scaleX;
+    var cropY = (rect.top - videoRect.top) * scaleY;
+    var cropW = rect.width * scaleX;
+    var cropH = rect.height * scaleY;
+
     var cropCanvas = document.createElement('canvas');
     cropCanvas.width = cropW;
     cropCanvas.height = cropH;
@@ -1043,8 +1050,37 @@ if ('serviceWorker' in navigator) {
 
     stopScanCamera();
 
-    // プレビュー確認用の仮の処理（ここに文字認識をつなぎこみます）
-    alert('枠内の画像をキャプチャしました！');
+    // 読み取り中のアラート（安全に表示）
+    alert('申込書の番号を読み取っています…（数秒かかります）');
+
+    try {
+      // Tesseract.jsで文字認識を実行
+      var result = await Tesseract.recognize(
+        cropCanvas,
+        'eng', // 数字特化の英語モード
+        {
+          logger: m => console.log(m)
+        }
+      );
+
+      var text = result.data.text;
+      console.log('OCR認識結果:', text);
+
+      // 7桁または8桁の数字を抽出
+      var match = text.match(/\d{7,8}/);
+      var cleaned = text.replace(/[^0-9\-]/g, '');
+      var detectedNumber = match ? match[0] : cleaned.trim();
+
+      if (detectedNumber) {
+        document.getElementById('caseId').value = detectedNumber;
+        alert('組合員番号「' + detectedNumber + '」を自動入力しました！');
+      } else {
+        alert('番号がうまく読み取れませんでした。もう一度枠内に合わせて撮影してください。\n(認識テキスト: ' + text + ')');
+      }
+
+    } catch (err) {
+      alert('文字認識に失敗しました: ' + err.message);
+    }
   });
 })();
 </script>
