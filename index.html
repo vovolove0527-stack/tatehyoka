@@ -1,20 +1,18 @@
 <!doctype html>
 <html lang="ja">
-<head><link rel="manifest" href="manifest.json">
+<head>
+<link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.jpeg" type="image/jpeg">
 <link rel="apple-touch-icon" href="icon.jpeg">
 
-
 <meta name="theme-color" content="#1e8f27">
-
 <meta name="apple-mobile-web-app-capable" content="yes">
-
 <meta name="mobile-web-app-capable" content="yes">
-
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>現場写真記録</title>
+
 <style>
 /* 組合員番号入力欄の強調表示 */
 .highlight-focus {
@@ -25,17 +23,11 @@
 }
 
 @keyframes pulse-border {
-  0% {
-    transform: scale(1);
-    box-shadow: 0 0 6px rgba(30, 143, 39, 0.4);
-  }
-  100% {
-    transform: scale(1.02);
-    box-shadow: 0 0 14px rgba(30, 143, 39, 0.8);
-  }
+  0% { transform: scale(1); box-shadow: 0 0 6px rgba(30, 143, 39, 0.4); }
+  100% { transform: scale(1.02); box-shadow: 0 0 14px rgba(30, 143, 39, 0.8); }
 }
 
-/* ★ ここに「未入力点滅用」のCSSを追加します */
+/* 組合員番号未入力時の点滅強調表示 */
 @keyframes hud-blink {
   0% { opacity: 1; color: #ffc247; text-shadow: 0 0 4px rgba(255, 194, 71, 0.8); }
   50% { opacity: 0.3; color: #ff5252; text-shadow: 0 0 1px rgba(255, 82, 82, 0.3); }
@@ -47,7 +39,6 @@
   animation: hud-blink 0.9s infinite;
 }
 
-/* レイアウト: 左に撮影画面、右に案件入力と撮影一覧。狭い画面では縦に積む。屋外で使うため操作部は大きく、コントラストは高く。 */
 :root {
   --bg: #edf0ec;
   --surface: #ffffff;
@@ -192,6 +183,7 @@ button.small-btn { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
 .notes ul { margin: 6px 0 0; padding-left: 1.2em; display: grid; gap: 2px; }
 .notes strong { color: var(--fg); }
 </style>
+</head>
 
 <!-- ★ Service Workerのスクリプトは <style> の外（下）に出します -->
 <script>
@@ -201,8 +193,6 @@ if ('serviceWorker' in navigator) {
     .catch(err => console.log(err));
 }
 </script>
-
-
 
 </head>
 <body>
