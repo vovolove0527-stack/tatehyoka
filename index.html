@@ -458,7 +458,7 @@ if ('serviceWorker' in navigator) {
     };
   }
 
-      function renderHud() {
+       function renderHud() {
     var info = currentInfo('撮影日時', new Date());
     var lines = buildLines(info);
     var hud = $('hud');
@@ -470,27 +470,11 @@ if ('serviceWorker' in navigator) {
         d.className = 'nogps';
       }
       
-      // ★ 組合員番号の行の場合、未入力部分だけを span で囲んで点滅させる
-      if (l.indexOf('組合員番号') !== -1) {
-        var parts = l.split('組合員番号');
-        d.textContent = parts[0] + '組合員番号 ';
-        
-        var span = document.createElement('span');
-        if (!info.caseId) {
-          span.textContent = '未入力';
-          span.className = 'unentered'; // 「未入力」の文字だけ点滅
-        } else {
-          span.textContent = info.caseId;
-        }
-        d.appendChild(span);
-        
-        // 担当者などの後ろのテキストがあれば続ける
-        var rest = l.substring(l.indexOf(info.caseId || '未入力') + (info.caseId ? info.caseId.length : 3));
-        if (rest) {
-          var restSpan = document.createElement('span');
-          restSpan.textContent = rest;
-          d.appendChild(restSpan);
-        }
+      // 組合員番号の行で、かつ未入力の場合：「未入力」の文字だけを span で囲んで点滅させる
+      if (l.indexOf('組合員番号') !== -1 && (!info.caseId || l.indexOf('未入力') !== -1)) {
+        // 「未入力」という文字を安全にHTML内の span に置き換える
+        var htmlText = l.replace('未入力', '<span class="unentered">未入力</span>');
+        d.innerHTML = htmlText;
       } else {
         d.textContent = l;
       }
