@@ -35,6 +35,18 @@
   }
 }
 
+/* ★ ここに「未入力点滅用」のCSSを追加します */
+@keyframes hud-blink {
+  0% { opacity: 1; color: #ffc247; text-shadow: 0 0 4px rgba(255, 194, 71, 0.8); }
+  50% { opacity: 0.3; color: #ff5252; text-shadow: 0 0 1px rgba(255, 82, 82, 0.3); }
+  100% { opacity: 1; color: #ffc247; text-shadow: 0 0 4px rgba(255, 194, 71, 0.8); }
+}
+.hud .unentered {
+  color: #ffc247;
+  font-weight: 700;
+  animation: hud-blink 0.9s infinite;
+}
+
 /* レイアウト: 左に撮影画面、右に案件入力と撮影一覧。狭い画面では縦に積む。屋外で使うため操作部は大きく、コントラストは高く。 */
 :root {
   --bg: #edf0ec;
@@ -91,6 +103,9 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; }
+</style>  <!-- ←ここで一度CSSを閉じます -->
+
+<!-- ★ Service Workerのスクリプトは <style> の外（下）に出します -->
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./service-worker.js')
@@ -98,6 +113,7 @@ if ('serviceWorker' in navigator) {
     .catch(err => console.log(err));
 }
 </script>
+
 
 body {
   background: var(--bg);
